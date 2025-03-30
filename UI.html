@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #3a86ff;
+        }
+
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        .bot-message {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+        }
+
+        .user-message .message-content {
+            background-color: #3a86ff;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message .message-content {
+            background-color: #f0f0f0;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        #send-button {
+            background-color: #3a86ff;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            padding: 0 20px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        #send-button:hover {
+            background-color: #2667cc;
+        }
+
+        #file-upload-button {
+            background-color: #f0f0f0;
+            color: #666;
+            border: none;
+            border-radius: 24px;
+            padding: 0 15px;
+            margin-left: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+        }
+
+        #file-upload-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        #file-upload {
+            display: none;
+        }
+
+        .suggestions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .suggestion-btn {
+            background-color: #e6f2ff;
+            border: 1px solid #3a86ff;
+            border-radius: 18px;
+            padding: 8px 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            color: #3a86ff;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .suggestion-btn:hover {
+            background-color: #d0e3ff;
+        }
+
+        .suggestion-btn:active {
+            background-color: #b3d1ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Resume Parsing System</h1>
+        </header>
+
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        Hello, I am the AI resume parsing assistant. Please upload the resume you need to parse!
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Type your question..." autofocus>
+
+                <button id="file-upload-button">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <input type="file" id="file-upload">
+
+                <button id="send-button">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const fileUploadButton = document.getElementById('file-upload-button');
+            const fileUpload = document.getElementById('file-upload');
+
+            // 文件上传按钮点击处理
+            fileUploadButton.addEventListener('click', function() {
+                fileUpload.click();
+            });
+
+            // 文件选择处理
+            fileUpload.addEventListener('change', async function(e) {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    addMessage(`Uploading File: ${file.name}`, 'user');
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+
+                        const response = await fetch('http://localhost:5000/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            // 显示上传成功消息和基本信息
+                            addMessage("The resume has been successfully uploaded and parsed!", 'bot');
+                            // 直接显示返回的基本信息
+                            addMessage(result.message, 'bot');
+
+                            // 创建问题建议消息
+                            const suggestionMessage = document.createElement('div');
+                            suggestionMessage.className = 'message bot-message';
+
+                            const suggestionContent = document.createElement('div');
+                            suggestionContent.className = 'message-content';
+                            suggestionContent.innerHTML = `
+                                <p>You can ask more questions now, or try one of these:</p>
+                                <div class="suggestions">
+                                    <button class="suggestion-btn" data-question="What are the candidate's key skills?">What are the candidate's key skills?</button>
+                                    <button class="suggestion-btn" data-question="Summarize the work experience">Summarize the work experience</button>
+                                    <button class="suggestion-btn" data-question="What education background does the candidate have?">What education background does the candidate have?</button>
+                                    <button class="suggestion-btn" data-question="List the candidate's technical skills">List the candidate's technical skills</button>
+                                    <button class="suggestion-btn" data-question="What projects has the candidate worked on?">What projects has the candidate worked on?</button>
+                                </div>
+                            `;
+
+                            suggestionMessage.appendChild(suggestionContent);
+                            chatMessages.appendChild(suggestionMessage);
+
+                            // 添加建议按钮点击事件
+                            document.querySelectorAll('.suggestion-btn').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    userInput.value = this.getAttribute('data-question');
+                                    sendMessage();
+                                });
+                            });
+
+                        } else {
+                            addMessage(`Upload failed: ${result.error || 'error'}`, 'bot');
+                        }
+                    } catch (error) {
+                        addMessage(`Upload failed: ${error.message}`, 'bot');
+                    }
+                }
+            });
+
+            // 发送消息
+            async function sendMessage() {
+                const message = userInput.value.trim();
+                if (message === '') return;
+
+                addMessage(message, 'user');
+                userInput.value = '';
+
+                try {
+                    const response = await fetch('http://localhost:5000/ask', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ question: message })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        addMessage(result.answer, 'bot');
+                    } else {
+                        addMessage(`error: ${result.error || 'Failed to retrieve the answer.'}`, 'bot');
+                    }
+                } catch (error) {
+                    addMessage(`Request error: ${error.message}`, 'bot');
+                }
+            }
+
+            // 添加消息到聊天界面
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = text;
+
+                messageDiv.appendChild(contentDiv);
+                chatMessages.appendChild(messageDiv);
+
+                // 滚动到底部
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // 事件监听
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
